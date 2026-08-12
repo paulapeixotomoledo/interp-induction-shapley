@@ -1,0 +1,14 @@
+# Environment that works on this machine (NVIDIA RTX A4500, driver 537.70 -> CUDA 12.2 max)
+#
+# IMPORTANT: install torch FIRST from the cu121 index, then transformer-lens.
+# Installing transformer-lens first pulls a CPU-only torch from PyPI, and the
+# cu126 build fails on this driver with cudaErrorDevicesUnavailable.
+#
+#   pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cu121
+#   pip install transformer-lens
+#   pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cu121 --force-reinstall --no-deps
+#
+torch==2.5.1          # +cu121 build
+transformer-lens==3.7.1
+matplotlib
+numpy
