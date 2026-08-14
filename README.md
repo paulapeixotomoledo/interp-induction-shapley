@@ -2,8 +2,8 @@
 
 A Shapley analysis of induction-head ablations in GPT-2 small.
 
-**Status:** in progress. Experiment 1 (replication) is done; experiment 2
-(ablation + Shapley) is being built.
+**Status:** experiments 1 and 2 are done. Headline: for these heads, **85–97% of
+the joint effect is interaction** — single-head ablation sees almost none of it.
 
 ---
 
@@ -53,12 +53,55 @@ right before anything is built on top of it.
 Observations and open questions from this run, including the ones I have not
 resolved, are in [NOTES.md](NOTES.md).
 
-## Experiment 2 — ablation and Shapley *(in progress)*
+## Experiment 2 — ablation and Shapley
 
-- Ablate each candidate head, measure recovered loss
-- Ablate every subset, measure the joint effect
-- Shapley-decompose the recovery across heads
-- Compare Shapley to marginal attribution; the difference is the interaction
+All five heads ablated individually and across all 32 subsets. `v(S)` = mean
+cross-entropy on second-copy positions with the heads in `S` ablated; the
+attributed quantity is `v(all) − v(none)`. Shapley computed exactly, not
+sampled. Σφ equals the total effect in every condition, as the efficiency axiom
+requires.
+
+Three ablation counterfactuals, because "ablate a head" is underspecified:
+**zero** (output → 0), **mean** (output → its batch mean), **resample** (output
+→ that head's output on a different sequence).
+
+### Marginal effects do not sum to the joint effect
+
+![additivity](results/additivity_check.png)
+
+| ablation | Σ marginals | joint effect | interaction share |
+|---|---|---|---|
+| zero | +0.72 | +4.80 | **85.0%** |
+| mean | +0.76 | +5.16 | **85.2%** |
+| resample | +0.29 | +11.59 | **97.5%** |
+
+Removing any one induction head is close to harmless; removing all five is
+catastrophic. Most of the effect lives in the interaction term, which
+single-head ablation cannot observe by construction.
+
+### Attention and causal importance disagree
+
+![attribution](results/attribution_by_head.png)
+
+L5H5 has the **highest** induction score in experiment 1 — it puts more
+attention on the induction diagonal than any other head — and a marginal
+ablation effect of **+0.05 nats**. L5H1, third by attention, carries most of the
+marginal signal. Attending to the right place and being load-bearing are not the
+same property.
+
+### The counterfactual choice changes the answer
+
+Resample ablation returns a joint effect 2.4× larger than zero ablation *and*
+promotes a different head to the top of the Shapley ranking. There is no
+counterfactual-independent answer to "how much does this head matter."
+
+### What is and is not new here
+
+Head redundancy is already documented in the literature — backup heads and
+self-repair are known. The contribution here is the measurement: an exact
+Shapley decomposition that quantifies how much of the total effect is
+interaction rather than individual contribution. Caveats, including why the
+resample number is probably an overestimate, are in [NOTES.md](NOTES.md).
 
 ## Running it
 
