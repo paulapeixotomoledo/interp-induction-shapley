@@ -139,7 +139,9 @@ the matched control also begins destroying induction.
 At k = 7 the sweep jumped +2.5 nats when L2H9 was added, the largest single step
 anywhere, from a head ranked only seventh. Head, or position?
 
-Ablated alone, **L2H9 costs +0.065 nats**. Across eleven ablation orderings the
+Ablated alone, **L2H9 costs +0.065 nats** — and over five seeds, **+0.032 ±
+0.017**, indistinguishable from zero and smaller than L2H3's +0.073 ± 0.005. The
+single-seed number was on the high side. Across eleven ablation orderings the
 big jump lands anywhere from k = 6 to k = 12, with L2H9 responsible in one of
 them. It was redundancy exhaustion.
 
@@ -166,10 +168,37 @@ Same 32 subsets, same Shapley, three measures from one forward pass:
 The efficiency axiom holds for all three, so each decomposition is internally
 correct; what differs is what is being decomposed.
 
-The interaction is real — 23% under the most linear measure, against roughly zero
-in the circuit model — but the 85% headline was substantially a property of
-measuring in log space. This control should have been run before experiment 2 was
-written up.
+The interaction is real — around 20% under the most linear measure, against
+roughly zero in the circuit model — but the 85% headline was substantially a
+property of measuring in log space. This control should have been run before
+experiment 2 was written up.
+
+### Control 3 — error bars
+
+Everything above came from a single draw of the prompt. Five seeds, batch 64:
+
+![seed sweep](results/seed_sweep.png)
+
+| metric | interaction share |
+|---|---|
+| cross-entropy | 84.6% ± 0.4 |
+| probability | 45.2% ± 0.7 |
+| centred logit | 20.8% ± 1.9 |
+
+The metric dependence is not a seed artefact. The spread is under two points in
+every condition.
+
+Two things changed:
+
+**L7H10's negative marginal is real.** Ablating it *improves* second-copy loss by
+−0.013 ± 0.002 nats, consistently, in all five seeds — six standard deviations
+from zero. I had written this off as probable noise. It is not.
+
+**L2H9's solo effect shrinks and crosses zero**, which strengthens rather than
+weakens the conclusion in control 1.
+
+And one thing that did not change: **the top five induction heads are the same
+set in all five seeds**, which had never been checked.
 
 ## Where this ended up
 

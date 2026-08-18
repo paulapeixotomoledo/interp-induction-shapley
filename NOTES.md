@@ -153,8 +153,10 @@ spread evenly. The subset table in `results/02_ablation_shapley.json` has
 everything needed to check, and I have not looked yet.
 
 **L7H10 has a negative marginal effect under zero ablation** (−0.011 nats):
-removing it very slightly improves second-copy loss. Small enough that it may be
-noise. Not checked against a seed sweep.
+removing it very slightly improves second-copy loss. ~~Small enough that it may
+be noise.~~ **Corrected 2026-08-18: the seed sweep says it is real** — −0.013 ±
+0.002 over five seeds, consistently negative in every one. See the control-3
+entry below.
 
 ---
 
@@ -279,6 +281,48 @@ cross-entropy, and I wrote it as though it were a statement about the circuit.
 README and this file have been corrected.
 
 Rule for myself: never quote an interaction share without the metric attached.
+
+---
+
+## 2026-08-18 — Control 3: error bars
+
+`03_seed_sweep.py`. Five seeds, batch 64, head set held fixed. Ran it because two
+claims in here rested on numbers small enough to be noise.
+
+### The headline holds
+
+| metric | interaction share |
+|---|---|
+| cross-entropy | 84.6% ± 0.4 |
+| probability | 45.2% ± 0.7 |
+| centred logit | 20.8% ± 1.9 |
+
+Under two points of spread in every condition. The metric dependence is not a
+seed artefact, which was the thing I most wanted to be sure of.
+
+### I was wrong about L7H10
+
+I had written that its negative marginal (−0.011 nats) was small enough to be
+noise. It is not: **−0.013 ± 0.002 over five seeds, negative in all five**, about
+six standard deviations from zero. Ablating L7H10 genuinely makes second-copy
+prediction slightly *better*.
+
+I have no explanation for that and am not going to invent one. Worth a proper
+look — it is the kind of thing that usually means the head is doing something
+that competes with induction rather than supporting it.
+
+### L2H9 shrinks, and the conclusion gets firmer
+
+Solo effect over five seeds: **+0.032 ± 0.017**, indistinguishable from zero, and
+smaller than L2H3's +0.073 ± 0.005. The single-seed +0.065 was on the high side.
+
+So "it was redundancy exhaustion, not the head" is on firmer ground than it was
+when I wrote it, not shakier. Good, but I only know that because I checked.
+
+### Head selection is stable
+
+The top five induction heads are the same set in all five seeds. That had never
+been tested, and it is the assumption every ablation in this repo rests on.
 
 ---
 
