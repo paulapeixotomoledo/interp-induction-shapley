@@ -158,11 +158,166 @@ noise. Not checked against a seed sweep.
 
 ---
 
+## 2026-08-17 — Experiment 3: the previous-token stage
+
+All of this is in `01_induction_annotated.ipynb`, sections 7–8e. `BATCH=32` here
+against 64 in the script, so numbers shift slightly.
+
+### Finding the other half of the circuit
+
+Same offset-diagonal technique, offset `−1` instead of `1 − SEQ_LEN`. Strongest
+previous-token head is **L4H11 at 0.989**, next is L3H7 at 0.541. Layer ordering
+comes out right: previous-token heads in layers 2–4, induction heads in 5–7.
+
+I want to be clear with myself that this part is **confirmatory**. I predicted
+early-layer previous-token heads and found early-layer previous-token heads. The
+prior was already high and the result could barely have surprised me. It is a
+check on the instrument, not a finding.
+
+The one thing in it I did not already know is the *shape* of the two
+distributions: previous-token is a single isolated spike (0.989 vs 0.541 next),
+induction is five heads bunched at 0.81–0.91. Different redundancy structure in
+the two halves. That is what suggested the test below.
+
+### The prediction, and its failure
+
+If L4H11 is that dominant and has no real backup, ablating it alone should break
+induction — even though ablating any single induction head barely does anything.
+That can fail, which is why it was worth running.
+
+It failed.
+
+| ablation | L4H11 | control | best single induction | all 5 induction |
+|---|---|---|---|---|
+| zero | +0.250 | +0.009 | **+0.612** | +4.787 |
+| mean | +0.250 | +0.003 | +0.632 | +5.068 |
+| resample | **+0.736** | −0.001 | +0.116 | +11.525 |
+
+L4H11 costs less than the best single induction head under zero ablation. Under
+resample it costs more. Third time in this project that the counterfactual choice
+reverses a ranking.
+
+The causal link is real, though: with L4H11 zeroed the induction scores fall
+(L5H1 0.889→0.537, L5H5 0.907→0.673, L7H2 0.814→0.672) and the matched control
+moves nothing by more than 0.01. Specific and localised — just not load-bearing.
+
+### No breakpoint exists
+
+Cumulative removal, strongest first, matched control at every step, out to k=24.
+
+| | k |
+|---|---|
+| induction score halved | 5 |
+| below 0.2, and loss halfway to no-information | 11 |
+| below 0.1 | 15 |
+| largest role-specific gap (+5.2 nats) | 16 |
+
+Erosion, not a cliff. ~11–16 heads carry the role.
+
+**Validity stops at k ≈ 19.** At k=20 the control's own induction score drops to
+0.365 and the gap collapses from 4.45 to 1.63 — past that I am breaking the model,
+not measuring the role. Rows beyond k=19 are in the output but should not be read.
+
+### A control error I made and had to fix
+
+The first matched control picked heads by lowest previous-token score within
+layer. That selected **L6H9 and L5H1 — induction heads**, which score low on
+previous-token precisely because they do not attend to `i−1`. Ablating them put
+the effect I was controlling for *into* the control, and inflated the apparent
+role-specific loss effect roughly threefold.
+
+Fixed by excluding anything with induction score > 0.3. Worth remembering: a
+control defined by the absence of one property can accidentally select for
+another.
+
+---
+
+## 2026-08-17 — Control 1: is importance a property of the head?
+
+Adding L2H9 seventh cost +2.5 nats, the biggest single step anywhere in the
+sweep, from a head ranked only seventh by score. Head, or position?
+
+**Ablated alone, L2H9 costs +0.065 nats.** Nothing. And across eleven different
+orderings the largest jump lands anywhere between k=6 and k=12, with L2H9
+responsible in exactly one of them — the original. It is redundancy exhaustion.
+
+But the same sweep produced the better result. **L4H11: +0.250 nats ablated
+first, +5.23 nats ablated last.** A factor of twenty, same head, same model, same
+metric. It is the head behind the largest jump in five of eleven orderings.
+
+So the thing I should stop saying is "how much does this head matter". There is
+no such quantity. Single-head ablation on an intact model measures one cell of a
+table and reports it as the head's importance.
+
+---
+
+## 2026-08-17 — Control 2: how much of the interaction is the logarithm?
+
+This is the one I should have run before writing up experiment 2.
+
+Cross-entropy is logarithmic, and log-loss is superadditive even for independent
+contributions — while enough probability survives on the right token the loss
+hardly moves, and only when it collapses does it explode. The circuit-model
+comparison I keep making measured firing rate, which is roughly linear, so the
+two are not on the same footing.
+
+Same 32 subsets, same Shapley, three measures off one forward pass:
+
+| metric | joint | Σ marginals | interaction |
+|---|---|---|---|
+| cross-entropy | 4.787 | 0.696 | **85.5%** |
+| probability of correct token | 0.613 | 0.333 | **45.7%** |
+| centred logit | 9.004 | 6.918 | **23.2%** |
+
+Efficiency axiom holds in all three, so each decomposition is internally fine.
+What differs is what is being decomposed.
+
+**Conclusion: the interaction is real but the 85% was inflated.** 23% under the
+most linear measure is still far from the ~0% I got in the circuit model, so
+there is genuine redundancy here. But "85% is interaction" is a statement about
+cross-entropy, and I wrote it as though it were a statement about the circuit.
+README and this file have been corrected.
+
+Rule for myself: never quote an interaction share without the metric attached.
+
+---
+
+## Where this leaves the project
+
+The question was whether contributions are additive. They are not, and that part
+held up.
+
+Three other things accumulated that I was not looking for:
+
+| | swing |
+|---|---|
+| counterfactual (zero vs resample) | joint effect 2.4×, top head changes |
+| metric (cross-entropy vs centred logit) | interaction 85% → 23% |
+| context (first vs last) | same head, 0.25 → 5.23 nats |
+
+I noticed these because I went looking for the replacement-versus-shift problem I
+already knew about from the circuit model, and then kept running controls. They
+were not the plan.
+
+Whether any of it is news to people who work on this full time, I have no idea —
+head redundancy certainly is not. What it has changed for me is that I no longer
+report a number from an ablation without saying which counterfactual, which
+metric, and in what order.
+
+---
+
 ## Next
 
 - Is the interaction pairwise or higher-order? The 32-subset table already
-  answers this.
-- Seed sweep, to put error bars on the small marginals and settle L7H10.
+  answers this; I have not looked.
+- Seed sweep for error bars on the small marginals, and to settle whether
+  L7H10's negative marginal is real.
+- Ablate across both stages at once. Experiment 2 touched only induction heads,
+  experiment 3 only previous-token heads. Never both.
 - Separate "information removed" from "wrong information injected" in the
   resample condition.
+- Do the second-tier induction heads (L10H1, L9H6, L9H9, L10H7, L5H0) act as the
+  backups?
 - Migrate off the deprecated `from_pretrained` path.
+- Fold experiment 3 and the controls into a script; they currently exist only in
+  the notebook.
